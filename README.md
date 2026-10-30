@@ -1,4 +1,4 @@
-# Servo measurements
+# servo-sysid
 
 Bench characterisation and simulation models of hobby serial-bus servos,
 for sim-to-real RL. Pendulum bench, 250 Hz telemetry of the PWM the
@@ -6,7 +6,7 @@ servo actually applies, BAM-style model fits.
 
 | Servo | Data | Model | Write-up | Charts |
 |---|---|---|---|---|
-| Waveshare SC15 (Feetech SCS15-compatible), unit 1 | 23 runs, 3.2 h at 250 Hz: unloaded, arm, 100 g, 1.52 kg at 50 and 65 mm; 4.8–8.7 V; 21–75 °C. Unit destroyed in the last runs (stripped output gear), flagged | Firmware controller identified; BAM M1–M6 plus thermal; validation MAE 0.85° (BAM protocol) | [`sc15/README.md`](sc15/README.md), [`sc15/model/`](sc15/model/README.md) | [`sc15/rendered/`](sc15/rendered/README.md) |
+| Waveshare SC15 (Feetech SCS15-compatible), unit 1 | 23 runs, 3.2 h at 250 Hz: unloaded, arm, 100 g, 1.52 kg at 50 and 65 mm; 4.8–8.7 V; 21–75 °C. Unit destroyed in the last runs (stripped output gear), flagged | Firmware controller identified; BAM M1–M6 plus thermal; validation MAE 0.81° (BAM protocol) | [`sc15/README.md`](sc15/README.md), [`sc15/model/`](sc15/model/README.md) | [`sc15/rendered/`](sc15/rendered/README.md) |
 
 ## Layout
 

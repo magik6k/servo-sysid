@@ -2,7 +2,7 @@
 
 Waveshare SC15, a Feetech SCS15-compatible serial-bus servo, bus ID 1.
 Measured 2026-10-28 to 2026-10-30 to fit the actuator and sensor models
-of the brobt RL simulator (`../../docs/control-interface.md`).
+of the brobt RL simulator.
 
 **Charts:** [`rendered/README.md`](rendered/README.md), regenerated with
 `python3 sc15/render.py`.
