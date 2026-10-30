@@ -1,0 +1,13 @@
+# chaos v2 seed=3515161341 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=probe 17=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: probe/kp15 holds/kp15 backlash/kp15 backlash/kp8 probe/kp15 chirp_soft/kp8 dual_sine_soft/kp8 raise_lower/kp8 chirp_soft/kp15 dual_sine_soft/kp15 raise_lower/kp15 chirp_soft/kp30 dual_sine_soft/kp30 raise_lower/kp30 probe/kp15 lift_drop/kp15 heavy_laps/kp15 bang/kp30 probe/kp15 chaos/kp15 probe/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 02 01 09 C4 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 01 00 00 00 00 2F 1B
+# reg 40: 00 00 00 02 01 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag heavy-batch-probed-1.52kg-at-50mm-4.8V
+# NOTE Supply set to 4.8 V (the servo reads 4.6-4.7 at rest); everything else as chaos_20261030_101658_heavy-batch-probed-1.52kg-at-50mm. Started from 27 C. Below the SC15's rated 6 V.
+# NOTE Sagged to 3.4 V; 18 % of frames below 4.5 V with error bit 0 set, but torque stayed on and no segment shows a servo reset. Every lap level stalled, 80 % included (supply 3.8 V there). The position stall guard ended holds and raise-lower segments that could not reach high angles; the plan finished at ~820 s instead of ~923.

@@ -23,6 +23,12 @@
 //   bang         flat out up and down near horizontal, reversing at full speed
 //   chirp_soft, dual_sine_soft  smaller, slower versions for a heavy pendulum
 //   backlash     1-8 deg steps out and back, hanging down and at 45 deg
+//   burn         full-duty chaos with a probe every minute, until the servo's
+//                own overheat protection trips; then torque off to cool
+//   burn_high    burn that brakes flat out while the pendulum falls through
+//                the lower half, with 6 s of normal chaos every 2 minutes
+//   heat         a narrow bang near horizontal until the servo is back up to
+//                near its limit; put before each block of a plan to run it hot
 // Each block can set the position-loop P gain. After the plan the gain is
 // restored and the pendulum is parked hanging down.
 
@@ -39,6 +45,23 @@ constexpr uint32_t MAX_HOLD_MS = 2000;
 
 constexpr uint8_t HOT_C = 65;   // Torque off at this temperature...
 constexpr uint8_t COOL_C = 50;  // ...until it is back down to this.
+constexpr uint8_t TEMP_READS = 3;  // Consecutive readings: single-frame glitches reach +15 C.
+
+// Plans with heat blocks run near the servo's limit instead. Under load it
+// throttles itself from ~74 C reported (single 100 C readings with the
+// overheat bit, each cutting the output to 0), and at ~72 C the motor
+// drive once cut out silently for over a minute, so they stay below that.
+// Each heat block brings the temperature back up to HEAT_TARGET_C unless
+// it is still at HEAT_FLOOR_C or more.
+constexpr uint8_t HOT_RUN_HOT_C = 69;
+constexpr uint8_t HOT_RUN_COOL_C = 66;
+constexpr uint8_t HEAT_FLOOR_C = 63;
+constexpr uint8_t HEAT_TARGET_C = 66;
+
+// A stall guard trip at DEAD_DRIVE_MIN_LOAD or more with the supply no
+// lower than at idle means no current is flowing: the drive is dead (as
+// at 72 C), not stalled. Torque goes off until the cooldown temperature.
+constexpr int16_t DEAD_DRIVE_MIN_LOAD = 500;
 
 // Torque off if the motor is driven hard but the shaft stops inside the
 // sensed range: stalled against gravity or something in the way. That
@@ -59,12 +82,12 @@ constexpr uint8_t DEFAULT_KP = 15;  // Factory position-loop P gain (0x15).
 enum Block : uint8_t {
   B_CHAOS, B_LAPS, B_HOLDS, B_CHIRP, B_DUAL_SINE, B_RAISE_LOWER, B_LIFT_DROP,
   B_SWINGS, B_HEAVY_LAPS, B_CHECK_LAPS, B_REGEN_BURSTS, B_CLIMB, B_BANG,
-  B_CHIRP_SOFT, B_DUAL_SINE_SOFT, B_BACKLASH, B_DONE
+  B_CHIRP_SOFT, B_DUAL_SINE_SOFT, B_BACKLASH, B_PROBE, B_BURN, B_BURN_HIGH, B_HEAT, B_DONE
 };
 const char *const BLOCK_NAMES[] = {
   "chaos", "laps", "holds", "chirp", "dual_sine", "raise_lower", "lift_drop",
   "swings", "heavy_laps", "check_laps", "regen_bursts", "climb", "bang",
-  "chirp_soft", "dual_sine_soft", "backlash", "done"
+  "chirp_soft", "dual_sine_soft", "backlash", "probe", "burn", "burn_high", "heat", "done"
 };
 
 constexpr uint32_t CHIRP_MS = 20000;
@@ -139,9 +162,82 @@ const BlockSpec HEAVY_BATCH[] = {
   {B_CHAOS, 15, 300000},
 };
 
+// HEAVY_BATCH with a torque probe before, between and after the groups,
+// so every block has a torque-vs-temperature reference. ~15.5 min.
+const BlockSpec HEAVY_BATCH_PROBED[] = {
+  {B_PROBE, 15, 0},
+  {B_HOLDS, 15, 0},
+  {B_BACKLASH, 15, 0}, {B_BACKLASH, 8, 0},
+  {B_PROBE, 15, 0},
+  {B_CHIRP_SOFT, 8, CHIRP_MS},  {B_DUAL_SINE_SOFT, 8, DUAL_SINE_MS},  {B_RAISE_LOWER, 8, RAISE_LOWER_MS},
+  {B_CHIRP_SOFT, 15, CHIRP_MS}, {B_DUAL_SINE_SOFT, 15, DUAL_SINE_MS}, {B_RAISE_LOWER, 15, RAISE_LOWER_MS},
+  {B_CHIRP_SOFT, 30, CHIRP_MS}, {B_DUAL_SINE_SOFT, 30, DUAL_SINE_MS}, {B_RAISE_LOWER, 30, RAISE_LOWER_MS},
+  {B_PROBE, 15, 0},
+  {B_LIFT_DROP, 15, 0},
+  {B_HEAVY_LAPS, 15, 0},
+  {B_BANG, 30, 0},
+  {B_PROBE, 15, 0},
+  {B_CHAOS, 15, 300000},
+  {B_PROBE, 15, 0},
+};
+
+// HEAVY_BATCH_PROBED, then a burn to the servo's overheat trip and a
+// torque-off cooldown that lasts until the recording stops.
+// WARNING: the burn, burn_high and hot plans below destroyed SC15 unit 1
+// (stripped output gear with 1.52 kg at 70-75 C). Keep heavy loads cooler.
+const BlockSpec HEAVY_BATCH_BURN[] = {
+  {B_PROBE, 15, 0},
+  {B_HOLDS, 15, 0},
+  {B_BACKLASH, 15, 0}, {B_BACKLASH, 8, 0},
+  {B_PROBE, 15, 0},
+  {B_CHIRP_SOFT, 8, CHIRP_MS},  {B_DUAL_SINE_SOFT, 8, DUAL_SINE_MS},  {B_RAISE_LOWER, 8, RAISE_LOWER_MS},
+  {B_CHIRP_SOFT, 15, CHIRP_MS}, {B_DUAL_SINE_SOFT, 15, DUAL_SINE_MS}, {B_RAISE_LOWER, 15, RAISE_LOWER_MS},
+  {B_CHIRP_SOFT, 30, CHIRP_MS}, {B_DUAL_SINE_SOFT, 30, DUAL_SINE_MS}, {B_RAISE_LOWER, 30, RAISE_LOWER_MS},
+  {B_PROBE, 15, 0},
+  {B_LIFT_DROP, 15, 0},
+  {B_HEAVY_LAPS, 15, 0},
+  {B_BANG, 30, 0},
+  {B_PROBE, 15, 0},
+  {B_CHAOS, 15, 300000},
+  {B_PROBE, 15, 0},
+  {B_BURN, 15, 0},
+};
+
+// burn_high straight away, for a servo that is already hot (a probe
+// block first would hit the HOT_C cutoff; the burn has its own probes).
+const BlockSpec BURN_HIGH_ONLY[] = {
+  {B_BURN_HIGH, 15, 0},
+};
+
+// HEAVY_BATCH_PROBED as close to overheat as it runs: a heat block before
+// each block, and the higher cutoff.
+const BlockSpec HOT_BATCH[] = {
+  {B_HEAT, 30, 0}, {B_PROBE, 15, 0},
+  {B_HEAT, 30, 0}, {B_HOLDS, 15, 0},
+  {B_HEAT, 30, 0}, {B_BACKLASH, 15, 0}, {B_HEAT, 30, 0}, {B_BACKLASH, 8, 0},
+  {B_HEAT, 30, 0}, {B_PROBE, 15, 0},
+  {B_HEAT, 30, 0}, {B_CHIRP_SOFT, 8, CHIRP_MS},
+  {B_HEAT, 30, 0}, {B_DUAL_SINE_SOFT, 8, DUAL_SINE_MS},
+  {B_HEAT, 30, 0}, {B_RAISE_LOWER, 8, RAISE_LOWER_MS},
+  {B_HEAT, 30, 0}, {B_CHIRP_SOFT, 15, CHIRP_MS},
+  {B_HEAT, 30, 0}, {B_DUAL_SINE_SOFT, 15, DUAL_SINE_MS},
+  {B_HEAT, 30, 0}, {B_RAISE_LOWER, 15, RAISE_LOWER_MS},
+  {B_HEAT, 30, 0}, {B_CHIRP_SOFT, 30, CHIRP_MS},
+  {B_HEAT, 30, 0}, {B_DUAL_SINE_SOFT, 30, DUAL_SINE_MS},
+  {B_HEAT, 30, 0}, {B_RAISE_LOWER, 30, RAISE_LOWER_MS},
+  {B_HEAT, 30, 0}, {B_PROBE, 15, 0},
+  {B_HEAT, 30, 0}, {B_LIFT_DROP, 15, 0},
+  {B_HEAT, 30, 0}, {B_HEAVY_LAPS, 15, 0},
+  {B_HEAT, 30, 0}, {B_BANG, 30, 0},
+  {B_HEAT, 30, 0}, {B_PROBE, 15, 0},
+  {B_HEAT, 30, 0}, {B_CHAOS, 15, 300000},
+  {B_HEAT, 30, 0}, {B_PROBE, 15, 0},
+};
+
 // What to run, in order.
-const auto &PLAN = HEAVY_BATCH;
+const auto &PLAN = HEAVY_BATCH_PROBED;
 constexpr size_t PLAN_COUNT = sizeof(PLAN) / sizeof(PLAN[0]);
+constexpr size_t START_BLOCK = 0;  // To resume a plan after an interruption (logged).
 
 // HOLDS: steps every HOLD_STEP_DEG, sweeping up then back down.
 constexpr int HOLD_MAX_DEG = 100;
@@ -157,6 +253,38 @@ const int16_t DROP_DEG[] = {30, 60, 90, 105, -30, -60, -90, -105};
 constexpr size_t DROP_COUNT = sizeof(DROP_DEG) / sizeof(DROP_DEG[0]);
 constexpr uint32_t DROP_RELEASE_MS = 3000;
 
+// PROBE: from hanging still, a fixed motor-mode push each way. Against a
+// heavy pendulum it stalls where torque = gravity, so the stall angle
+// tracks torque per unit as the motor heats; the stall guard ends the
+// push. 25 % with 1.52 kg at 50 mm: roughly 55 deg cold, 40 deg warm.
+constexpr int16_t PROBE_DUTY = 250;
+constexpr uint32_t PROBE_PUSH_MS = 4000;
+constexpr uint32_t PROBE_SEGMENTS = 5;  // settle, push +, settle, push -, settle
+
+// BURN: random-length full-duty motor segments, either direction, with
+// the HOT_C cutoff off. A probe every BURN_PROBE_EVERY_MS tracks torque
+// as it heats. It ends when the servo reports overheat (limit 0x0D = 80 C,
+// unload mask 0x13 = 0x24), or at BURN_MAX_C if it never does. The command
+// is kept for BURN_WATCH_MS after that, to see what the servo does by
+// itself, then torque goes off and the pendulum cools hanging.
+constexpr uint8_t ERROR_OVERHEAT = 0x04;
+constexpr uint8_t BURN_MAX_C = 85;
+constexpr uint32_t BURN_PROBE_EVERY_MS = 60000;
+constexpr uint32_t BURN_WATCH_MS = 3000;
+
+// BURN_HIGH: as BURN, but while the pendulum falls through the lower
+// half it drives flat out against the motion, so the energy of the fall
+// goes into the motor (and back to the supply) instead of into speed.
+// Each switch bounces the mode, so the output restarts from 0 instead of
+// slewing through the old duty. Every BURN_CHAOS_EVERY_MS it runs
+// BURN_CHAOS_MS of normal chaos segments.
+constexpr float BRAKE_DEG = 90;
+constexpr int16_t BRAKE_COUNTS = BRAKE_DEG * COUNTS_PER_DEG;
+constexpr int16_t BRAKE_MIN_SPEED = 200;  // counts/s; slower swings run the segment's duty
+constexpr int16_t BRAKE_MAX_STEP = 30;    // counts/sample; larger is a gap sweep, not motion
+constexpr uint32_t BURN_CHAOS_EVERY_MS = 120000;
+constexpr uint32_t BURN_CHAOS_MS = 6000;
+
 // BANG: from rest at BANG_LO_DEG, flat out up and down. Each goal lies
 // past its flip point so the position loop stays saturated until the
 // flip (the plan runs it at kp 30). 45 deg above horizontal is in the
@@ -167,6 +295,16 @@ constexpr float BANG_LO_GOAL = 45;
 constexpr float BANG_HI_GOAL = 105;
 constexpr uint8_t BANG_STROKES = 6;   // 3 up, 3 down
 constexpr uint32_t BANG_TIMEOUT_MS = 6000;
+
+// HEAT: the most current gravity allows without a stop is flat out at low
+// speed with the arm extended, so a narrow bang just below horizontal,
+// with no stroke limit. Full-speed laps mostly fight back-EMF, and holds
+// trip the overload clamp. Sides alternate between heat blocks.
+constexpr float HEAT_LO_DEG = 75;
+constexpr float HEAT_HI_DEG = 95;
+constexpr float HEAT_LO_GOAL = 60;
+constexpr float HEAT_HI_GOAL = 105;
+constexpr uint32_t HEAT_SEGMENT_MS = 30000;
 
 // BACKLASH: small steps out and back around each centre. Hanging down
 // nothing preloads the gears; at 45 deg gravity holds them against one
@@ -252,6 +390,7 @@ enum Mode : uint8_t { MOTOR = 0, POSITION = 1, COOLDOWN = 2, FAULT = 3, RELEASED
 constexpr uint8_t FLAG_SEGMENT_START = 0x01;  // First frame of a segment.
 constexpr uint8_t FLAG_MODE_ENTRY = 0x02;     // Mode limits written: ramp reset.
 constexpr uint8_t FLAG_READ_FAILED = 0x04;    // No telemetry in this frame.
+constexpr uint8_t FLAG_DEAD_DRIVE = 0x08;     // Stalled at high output with no supply sag.
 
 // Little-endian, 26 bytes. Checksum = sum of bytes after sync, mod 256.
 struct __attribute__((packed)) Frame {
@@ -279,6 +418,7 @@ struct Segment {
   bool bounce;           // Motor: bounce through position mode first.
   bool streaming;        // Position: goal follows the block's trajectory.
   bool release;          // Torque off for the whole segment.
+  bool brake;            // Motor: BURN_HIGH braking while falling.
   int16_t command;
   uint16_t commandTime;
   uint32_t holdMs;
@@ -304,8 +444,23 @@ bool bangUp = true;
 uint8_t bangStrokes = 0;
 uint32_t stallSinceMs = 0;
 uint32_t nextSampleUs = 0;
+bool burnTripped = false;
+uint32_t burnProbeStep = 0;  // Next probe segment; 0 = between probes.
+uint32_t burnProbeAtMs = 0;
+uint32_t burnChaosAtMs = 0;
+uint32_t burnChaosEndMs = 0;
+int16_t lastSpeed = 0;     // Latest good reading, counts/s.
+int16_t positionStep = 0;  // Counts since the reading before.
+bool braking = false;
+int16_t appliedDuty = 0;   // Brake segments: what the PWM register holds.
+bool rampReset = false;    // Bounced after the last frame.
+uint8_t recentTemps[3] = {};
+uint8_t tempCount = 0;
+uint8_t steadyTemp = 0;    // Median of the last 3 readings.
+bool hotPlan = false;      // The plan has heat blocks.
+int heatSide = -1;         // +1 or -1: which side the current heat block bangs on.
 
-size_t blockIndex = 0;
+size_t blockIndex = START_BLOCK;
 uint32_t blockSegment = 0;
 uint32_t blockStartMs = 0;
 uint8_t currentKp = 0;  // Unknown until the first block sets it.
@@ -550,6 +705,54 @@ Segment randomSegment() {
   return s;
 }
 
+Segment probeSegment(uint32_t i) {
+  if (i % 2 == 0) return i == 0 ? moveSegment(0, 1000, 2500) : moveSegment(0, 2000, 3000);
+  Segment s{};
+  s.mode = MOTOR;
+  s.command = i == 1 ? PROBE_DUTY : -PROBE_DUTY;
+  s.holdMs = PROBE_PUSH_MS;
+  return s;
+}
+
+Segment fullDutySegment(bool brake) {
+  Segment s{};
+  s.mode = MOTOR;
+  s.bounce = rng() & 1;
+  s.brake = brake;
+  s.command = rng() & 1 ? MAX_DUTY : -MAX_DUTY;
+  s.holdMs = logUniform(MIN_HOLD_MS, MAX_HOLD_MS);
+  return s;
+}
+
+Segment burnSegment(uint32_t i, bool high) {
+  Segment s{};
+  if (burnTripped) {  // Torque off until the recording stops.
+    s.mode = POSITION;
+    s.release = true;
+    s.holdMs = UINT32_MAX;
+    return s;
+  }
+  if (i == 0) {
+    burnProbeAtMs = millis() + BURN_PROBE_EVERY_MS;  // BURN follows a probe.
+    burnChaosAtMs = millis() + BURN_CHAOS_EVERY_MS;
+  }
+  if (high && millis() < burnChaosEndMs) return randomSegment();
+  if (burnProbeStep > 0 || millis() >= burnProbeAtMs) {
+    s = probeSegment(burnProbeStep++);
+    if (burnProbeStep == PROBE_SEGMENTS) {
+      burnProbeStep = 0;
+      burnProbeAtMs = millis() + BURN_PROBE_EVERY_MS;
+    }
+    return s;
+  }
+  if (high && millis() >= burnChaosAtMs) {
+    burnChaosEndMs = millis() + BURN_CHAOS_MS;
+    burnChaosAtMs = millis() + BURN_CHAOS_EVERY_MS;
+    return randomSegment();
+  }
+  return fullDutySegment(high);
+}
+
 // Segment i of block b, or false once the block is done.
 bool blockSegmentAt(const BlockSpec &b, uint32_t i, Segment &s) {
   switch (b.block) {
@@ -589,6 +792,28 @@ bool blockSegmentAt(const BlockSpec &b, uint32_t i, Segment &s) {
         s = moveSegment(0, 3000, 4000);
       } else {
         return false;
+      }
+      return true;
+
+    case B_PROBE:
+      if (i >= PROBE_SEGMENTS) return false;
+      s = probeSegment(i);
+      return true;
+
+    case B_BURN:
+    case B_BURN_HIGH:
+      s = burnSegment(i, b.block == B_BURN_HIGH);
+      return true;
+
+    case B_HEAT:
+      if (steadyTemp >= (i == 0 ? HEAT_FLOOR_C : HEAT_TARGET_C)) return false;
+      if (i == 0) {
+        heatSide = -heatSide;
+        s = moveSegment(heatSide * HEAT_LO_DEG, 1500, 2000);
+      } else {
+        s = moveSegment(heatSide * HEAT_HI_GOAL, 1, HEAT_SEGMENT_MS);
+        s.streaming = true;
+        bangUp = true;
       }
       return true;
 
@@ -700,6 +925,8 @@ Segment nextSegment() {
 void applySegment() {
   segmentModeEntry = false;
   stalled = false;
+  braking = false;
+  appliedDuty = segment.command;
 
   if (segment.release) {
     setTorque(false);
@@ -742,21 +969,28 @@ void applySegment() {
   }
 }
 
-// Flips the goal when the pendulum passes a flip point; the segment ends
-// after the last stroke.
+bool inBlock(Block b);
+
+// Flips the goal when the pendulum passes a flip point; a bang segment
+// ends after the last stroke, a heat segment on temperature or time.
 void bangStep() {
-  if (bangUp && lastPosition >= goalCount(BANG_HI_DEG)) {
+  const bool heat = inBlock(B_HEAT);
+  const int side = heat ? heatSide : 1;
+  const float deg = side * (static_cast<int>(lastPosition) - DOWN_COUNT) / COUNTS_PER_DEG;
+  if (bangUp && deg >= (heat ? HEAT_HI_DEG : BANG_HI_DEG)) {
     bangUp = false;
     ++bangStrokes;
-  } else if (!bangUp && lastPosition <= goalCount(BANG_LO_DEG)) {
+  } else if (!bangUp && deg <= (heat ? HEAT_LO_DEG : BANG_LO_DEG)) {
     bangUp = true;
     ++bangStrokes;
   }
-  if (bangStrokes >= BANG_STROKES) {
+  if (!heat && bangStrokes >= BANG_STROKES) {
     segment.holdMs = millis() - segmentStartMs;
     return;
   }
-  const int16_t goal = goalCount(bangUp ? BANG_HI_GOAL : BANG_LO_GOAL);
+  const float goalDeg = heat ? (bangUp ? HEAT_HI_GOAL : HEAT_LO_GOAL)
+                             : (bangUp ? BANG_HI_GOAL : BANG_LO_GOAL);
+  const int16_t goal = goalCount(side * goalDeg);
   if (goal != segment.command) {
     segment.command = goal;
     writeGoal(goal, 1);
@@ -764,7 +998,7 @@ void bangStep() {
 }
 
 void streamTrajectory() {
-  if (PLAN[blockIndex].block == B_BANG) {
+  if (PLAN[blockIndex].block == B_BANG || PLAN[blockIndex].block == B_HEAT) {
     bangStep();
     return;
   }
@@ -773,11 +1007,46 @@ void streamTrajectory() {
   writeGoal(segment.command, TRAJ_TIME_MS);
 }
 
+// Flat out against the motion while falling through the lower half,
+// otherwise the segment's duty. Positive PWM drives the count down.
+void brakeStep() {
+  const int offset = static_cast<int>(lastPosition) - DOWN_COUNT;
+  const bool falling = abs(offset) <= BRAKE_COUNTS && abs(lastSpeed) >= BRAKE_MIN_SPEED &&
+                       abs(positionStep) <= BRAKE_MAX_STEP && offset * lastSpeed < 0;
+  if (falling == braking) return;
+  braking = falling;
+
+  const int16_t duty = braking ? (lastSpeed > 0 ? MAX_DUTY : -MAX_DUTY) : segment.command;
+  if (duty == appliedDuty) return;
+  servoWrite(0x09, POSITION_MODE, sizeof(POSITION_MODE));
+  servoWrite(0x09, MOTOR_MODE, sizeof(MOTOR_MODE));
+  setDuty(duty);
+  appliedDuty = duty;
+  rampReset = true;
+}
+
+bool inBlock(Block b) {
+  return blockIndex < PLAN_COUNT && PLAN[blockIndex].block == b;
+}
+
+bool burning() {
+  return inBlock(B_BURN) || inBlock(B_BURN_HIGH);
+}
+
 void updateCooling(uint8_t temperature) {
-  if (!cooling && temperature >= HOT_C) {
+  if (burning()) return;  // The servo's own protection is the limit.
+  static uint8_t streak = 0;
+  const uint8_t hot = hotPlan ? HOT_RUN_HOT_C : HOT_C;
+  const uint8_t cool = hotPlan ? HOT_RUN_COOL_C : COOL_C;
+  const bool past = cooling ? temperature <= cool : temperature >= hot;
+  streak = past ? streak + 1 : 0;
+  if (streak < TEMP_READS) return;
+  streak = 0;
+
+  if (!cooling) {
     setTorque(false);
     cooling = true;
-  } else if (cooling && temperature <= COOL_C) {
+  } else {
     setTorque(true);
     cooling = false;
     servoMode = COOLDOWN;                         // Force a mode write...
@@ -785,8 +1054,33 @@ void updateCooling(uint8_t temperature) {
   }
 }
 
-void updateStallGuard(uint16_t position, int16_t load) {
-  if (STALL_GUARD_MS == 0 || released) return;
+uint8_t median3(const uint8_t *v) {
+  return max(min(v[0], v[1]), min(max(v[0], v[1]), v[2]));
+}
+
+void updateTemperature(uint8_t temperature) {
+  recentTemps[tempCount++ % 3] = temperature;
+  steadyTemp = median3(recentTemps);
+  if (inBlock(B_HEAT) && steadyTemp >= HEAT_TARGET_C) {
+    segment.holdMs = millis() - segmentStartMs;  // Warm enough: end the block now.
+  }
+}
+
+void updateBurn(uint8_t temperature, uint8_t error) {
+  static uint8_t streak = 0;
+  if (burnTripped || !burning()) return;
+  const bool hot = (error & ERROR_OVERHEAT) || temperature >= BURN_MAX_C;
+  streak = hot ? streak + 1 : 0;
+  if (streak < TEMP_READS) return;
+  burnTripped = true;
+  segment.holdMs = millis() - segmentStartMs + BURN_WATCH_MS;  // The release follows.
+}
+
+// Returns true if the trip found a dead drive.
+bool updateStallGuard(uint16_t position, int16_t load, uint8_t voltage) {
+  static uint8_t idleVoltage = 0;
+  if (abs(load) < 30) idleVoltage = voltage;
+  if (STALL_GUARD_MS == 0 || released) return false;
 
   const int16_t minLoad = segment.mode == MOTOR ? STALL_MIN_LOAD : POSITION_STALL_MIN_LOAD;
   const bool driven = abs(load) >= minLoad;
@@ -794,15 +1088,17 @@ void updateStallGuard(uint16_t position, int16_t load) {
   if (!driven || !sensed || abs(static_cast<int>(position) - stallPosition) > 2) {
     stallPosition = position;
     stallSinceMs = millis();
-    return;
+    return false;
   }
 
-  if (millis() - stallSinceMs >= STALL_GUARD_MS) {
-    setTorque(false);
-    released = true;  // The next segment turns torque back on.
-    stalled = true;
-    segment.holdMs = millis() - segmentStartMs;  // End this segment now.
-  }
+  if (millis() - stallSinceMs < STALL_GUARD_MS) return false;
+  setTorque(false);
+  released = true;  // The next segment turns torque back on.
+  stalled = true;
+  segment.holdMs = millis() - segmentStartMs;  // End this segment now.
+  const bool dead = abs(load) >= DEAD_DRIVE_MIN_LOAD && voltage + 1 >= idleVoltage;
+  if (dead) cooling = true;  // Back on at the cooldown temperature.
+  return dead;
 }
 
 void sendFrame(uint8_t flags) {
@@ -811,7 +1107,7 @@ void sendFrame(uint8_t flags) {
   f.sync[1] = 0x5A;
   f.timeUs = micros();
   f.segment = segmentIndex;
-  f.command = segment.command;
+  f.command = segment.brake ? appliedDuty : segment.command;
   f.commandTime = segment.commandTime;
   f.block = blockIndex < PLAN_COUNT ? PLAN[blockIndex].block : B_DONE;
   f.kp = currentKp;
@@ -828,12 +1124,16 @@ void sendFrame(uint8_t flags) {
     f.load = signMagnitude(d[4] << 8 | d[5], 10);
     f.voltage = d[6];
     f.temperature = d[7];
+    positionStep = static_cast<int>(f.position) - lastPosition;
     lastPosition = f.position;
+    lastSpeed = f.speed;
     f.error = static_cast<uint8_t>(error);
+    updateTemperature(f.temperature);
     updateCooling(f.temperature);
-    updateStallGuard(f.position, f.load);
+    updateBurn(f.temperature, f.error);
+    if (updateStallGuard(f.position, f.load, f.voltage)) flags |= FLAG_DEAD_DRIVE;
   }
-  f.mode = stalled ? FAULT : cooling ? COOLDOWN : segment.release ? RELEASED : segment.mode;
+  f.mode = cooling ? COOLDOWN : stalled ? FAULT : segment.release ? RELEASED : segment.mode;
   f.flags = flags;
 
   const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&f);
@@ -877,7 +1177,19 @@ void setup() {
     Serial.printf(" %s/kp%u", BLOCK_NAMES[b.block], b.kp);
   }
   Serial.println();
+  Serial.printf("# plan start: block %u\n", static_cast<unsigned>(START_BLOCK));
+  for (const BlockSpec &b : PLAN) {
+    hotPlan = hotPlan || b.block == B_HEAT;
+  }
+  Serial.printf("# thermal: torque off at %u C until %u C", hotPlan ? HOT_RUN_HOT_C : HOT_C,
+                hotPlan ? HOT_RUN_COOL_C : COOL_C);
+  if (hotPlan) Serial.printf("; heat blocks run below %u C, up to %u C", HEAT_FLOOR_C, HEAT_TARGET_C);
+  Serial.println();
   dumpRegisters();
+  uint8_t temperature;
+  if (servoRead(SERVO_ID, 0x3F, 1, &temperature) >= 0) {
+    for (int i = 0; i < 3; ++i) updateTemperature(temperature);
+  }
   Serial.println("# BEGIN");
   Serial.flush();
 
@@ -904,8 +1216,16 @@ void loop() {
     flags |= FLAG_SEGMENT_START;
     if (segmentModeEntry) flags |= FLAG_MODE_ENTRY;
   }
+  if (rampReset) {
+    flags |= FLAG_MODE_ENTRY;
+    rampReset = false;
+  }
 
   sendFrame(flags);
+
+  if (segment.brake && !cooling && !released) {
+    brakeStep();
+  }
 
   // A goal written every sample just before the read made the servo miss
   // most reads, so the next goal goes out right after this sample's read.

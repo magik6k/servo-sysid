@@ -1,0 +1,15 @@
+# chaos v2 seed=1345264945 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=probe 17=burn 18=burn_high 19=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: burn_high/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 00 00 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 00 9C 03 E8 00 00
+# reg 30: 01 00 00 00 00 00 00 00 00 AD 00 00 03 E8 47 49
+# reg 40: 00 00 01 00 9C 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag burn-high-1.52kg-at-50mm-8.7V-from-hot
+# NOTE burn_high (brakes flat out while falling through the lower half; 6 s of normal chaos every 2 min) started straight after chaos_20261030_134414, with the servo already at a reported 74 C. Same 1.52 kg at 50 mm, 8.7 V.
+# NOTE The servo's overheat protection, not a latch: the reported temperature stayed 74-75 C, but from ~59 s frames reading exactly 100 C with error bit 2 came every few ticks, each cutting the output to 0; |output| stayed below ~70. The firmware's 3-in-a-row trip fired at 59.8 s, the command was kept 3 s, then torque off at 62.8 s. No overheat frames at all with torque off, at the same 74-75 C: the over-limit readings come with motor current.
+# NOTE From 62.8 s: torque off, the pendulum hanging, cooling logged until the recording stops. No chaos window ran (first due at 120 s).
+# NOTE Stopped at 268.7 s (14:29:30, reported 64 C, falling ~3 C/min hanging with torque off) to run the hot batch, chaos_20261030_143007.

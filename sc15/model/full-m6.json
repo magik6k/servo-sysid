@@ -1,0 +1,112 @@
+{
+ "name": "full-m6",
+ "model": "m6",
+ "fixed": {
+  "kd": 74.5
+ },
+ "seeds": 3,
+ "seed_costs": [
+  0.0450660344244727,
+  0.04267181060526474,
+  0.04342363283353448
+ ],
+ "thermal": true,
+ "directional": false,
+ "weigh_kinds": true,
+ "closed_loop": true,
+ "kinds": [
+  "trajectory",
+  "drop",
+  "motor",
+  "chaos"
+ ],
+ "validation_runs": [
+  "134414_heavy-batch-burn",
+  "112510_heavy-batch-probed"
+ ],
+ "evaluations": 45072,
+ "seconds": 134,
+ "params": {
+  "kd": 74.5,
+  "k": 0.45850700914722825,
+  "b": 0.014085002048983098,
+  "J_m": 0.013733480673520032,
+  "J_spool": 0.005121131494856269,
+  "offset": 0.0032376996935025923,
+  "Kc": 0.052998752963553594,
+  "Kv": 0.39269504016576234,
+  "Kcs": 0.05187796564185457,
+  "vs": 0.223723682416526,
+  "alpha": 1.0598856434804043,
+  "Km": 0.14456846094468873,
+  "Ke": 0.30088997732044775,
+  "Kms": 0.0001420883898439866,
+  "Kes": 0.0033998655880767906,
+  "Kmq": 0.07863642295850508,
+  "Keq": 0.817613540442895,
+  "aT": 0.005093502450022917
+ },
+ "train_mae_rad": 0.04519735139673116,
+ "val_mae_rad": 0.04010526812386164,
+ "by_kind": {
+  "train/chaos": {
+   "mae_deg": 3.096,
+   "windows": 273
+  },
+  "train/drop": {
+   "mae_deg": 0.597,
+   "windows": 3
+  },
+  "train/motor": {
+   "mae_deg": 4.879,
+   "windows": 72
+  },
+  "train/trajectory": {
+   "mae_deg": 1.208,
+   "windows": 215
+  },
+  "val/chaos": {
+   "mae_deg": 3.263,
+   "windows": 87
+  },
+  "val/drop": {
+   "mae_deg": 1.542,
+   "windows": 8
+  },
+  "val/motor": {
+   "mae_deg": 4.537,
+   "windows": 26
+  },
+  "val/trajectory": {
+   "mae_deg": 0.715,
+   "windows": 86
+  }
+ },
+ "by_setup_kp": {
+  "train/1.52kg/chaos/15": 3.237,
+  "train/1.52kg/drop/15": 0.747,
+  "train/1.52kg/motor/15": 7.56,
+  "train/1.52kg/trajectory/8": 0.981,
+  "train/1.52kg/trajectory/15": 0.775,
+  "train/1.52kg/trajectory/30": 1.359,
+  "train/1.52kg-50mm/chaos/15": 2.992,
+  "train/1.52kg-50mm/drop/15": 0.522,
+  "train/1.52kg-50mm/motor/15": 3.214,
+  "train/1.52kg-50mm/trajectory/8": 0.716,
+  "train/1.52kg-50mm/trajectory/15": 0.778,
+  "train/1.52kg-50mm/trajectory/30": 1.217,
+  "train/100g/chaos/15": 4.056,
+  "train/100g/motor/15": 5.963,
+  "train/100g/trajectory/8": 1.263,
+  "train/100g/trajectory/15": 2.381,
+  "train/100g/trajectory/30": 3.31,
+  "train/arm/chaos/15": 3.352,
+  "train/unloaded/chaos/15": 1.96,
+  "val/1.52kg-50mm/chaos/15": 3.263,
+  "val/1.52kg-50mm/drop/15": 1.542,
+  "val/1.52kg-50mm/motor/15": 4.537,
+  "val/1.52kg-50mm/trajectory/8": 0.566,
+  "val/1.52kg-50mm/trajectory/15": 0.437,
+  "val/1.52kg-50mm/trajectory/30": 1.153
+ }
+}

@@ -1,0 +1,9 @@
+# Recording and analysis
+pyserial
+numpy
+pandas
+scipy
+matplotlib
+# Model fitting (shared/tools/fit_model.py)
+numba
+cma

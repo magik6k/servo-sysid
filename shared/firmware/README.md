@@ -8,7 +8,7 @@ on a one-wire bus (G33, 1 Mbaud, pull-up to 3.3 V). Flash with:
 
 | Sketch | Use |
 |---|---|
-| `chaos/` | **The test firmware.** Runs a plan of blocks (chaos, laps, holds, chirp, dual-sine, raise-lower, lift-drop, swings, heavy laps, backlash, bang, …) and streams 26-byte binary frames at 250 Hz. Pick the plan with `const auto &PLAN = …`. Record with `shared/tools/chaos_log.py`. Servo-specific constants (`DOWN_COUNT`, `COUNTS_PER_DEG`, goal window) are at the top |
+| `chaos/` | **The test firmware.** Runs a plan of blocks (chaos, laps, holds, chirp, dual-sine, raise-lower, lift-drop, swings, heavy laps, backlash, bang, torque probe, burn, burn_high, heat, …) and streams 26-byte binary frames at 250 Hz. Pick the plan with `const auto &PLAN = …`. Record with `shared/tools/chaos_log.py`. Servo-specific constants (`DOWN_COUNT`, `COUNTS_PER_DEG`, goal window) are at the top |
 | `hold_position/` | Moves to a count and holds it; text telemetry at 20 Hz. Serial commands: `r` release, `h` hold here, `<count>` move. Used to park the horn while mounting arms, and by `shared/tools/hold_steps.py` |
 | `bus_check/` | One-shot bus diagnosis: do broadcast and addressed writes land, and does the echo match |
 | `reverse_probe/` | Probes for ways past the motor-mode PWM ramp (found the bounce) |

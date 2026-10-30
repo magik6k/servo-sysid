@@ -1,34 +1,51 @@
 # Servo measurements
 
-Bench characterisation of the serial-bus servos used in brobt, a small
-purpose-built home robot that pushes, pulls and carries things on the
-floor. The data feeds the actuator and sensor models of the RL simulator.
-The interface plan is in `../docs/control-interface.md`.
+Bench characterisation and simulation models of hobby serial-bus servos,
+for sim-to-real RL. Pendulum bench, 250 Hz telemetry of the PWM the
+servo actually applies, BAM-style model fits.
 
-| Servo | Status | Write-up | Charts |
-|---|---|---|---|
-| Waveshare SC15, unit 1 | Unloaded, arm, 100 g and 1.52 kg pendulum runs; full heavy batch next | [`sc15/README.md`](sc15/README.md) | [`sc15/rendered/`](sc15/rendered/README.md) |
+| Servo | Data | Model | Write-up | Charts |
+|---|---|---|---|---|
+| Waveshare SC15 (Feetech SCS15-compatible), unit 1 | 23 runs, 3.2 h at 250 Hz: unloaded, arm, 100 g, 1.52 kg at 50 and 65 mm; 4.8–8.7 V; 21–75 °C. Unit destroyed in the last runs (stripped output gear), flagged | Firmware controller identified; BAM M1–M6 plus thermal; validation MAE 0.85° (BAM protocol) | [`sc15/README.md`](sc15/README.md), [`sc15/model/`](sc15/model/README.md) | [`sc15/rendered/`](sc15/rendered/README.md) |
 
 ## Layout
 
 ```
 shared/                common to every servo
   firmware/            ESP32 (M5 Atom Lite) sketches; chaos/ is the test firmware
-  tools/               recording and analysis (Python)
-    servolab.py        shared helpers: run lookup, metadata, angle and derivative filtering
+  tools/               recording, analysis, model (Python)
+    servolab.py        run lookup, metadata, angle and derivative filtering
     chaos_log.py       records a chaos-firmware run into <servo>/data
-    split_batch.py     splits a run into one CSV per block in <servo>/data/derived (not in git)
+    split_batch.py     one CSV per block into <servo>/data/derived (not in git)
     hold_steps.py      position steps through the hold_position sketch
     chaos_analyze.py   slew, steady state, steps, laps, supply
-    holds_analyze.py   gravity / gearbox efficiency / torque-per-unit fit from a holds run
-  rig/                 OpenSCAD pendulum stand, arms, spool mount; STLs; vendor CAD
-<servo>/               one directory per servo model (and unit)
-  README.md            setup, register facts, every finding, run log, next run
-  servo.json           constants: counts/rev, down count, sensor trust window, load setups
-  data/                raw runs: <run>.csv.gz + <run>.meta.txt (preamble, plan, register dump, notes)
-  render.py            draws the charts for this servo
-  rendered/            README.md with the charts, charts/*.png (light and -dark)
+    holds_analyze.py   gravity / gearbox efficiency / torque-per-unit fit
+    sc_model.py        actuator model: firmware controller, motor, friction, pendulum
+    model_data.py      cuts runs into fitting windows
+    fit_model.py       CMA-ES fit and held-out validation
+  rig/                 OpenSCAD pendulum stand, arms, spool mount; STLs
+<servo>/
+  README.md            setup, register facts, findings, run log, next runs
+  servo.json           counts/rev, down count, sensor trust window, load setups
+  data/                raw runs: <run>.csv.gz + <run>.meta.txt; runs.csv = manifest with unit state
+  model/               fitted parameters (JSON) and model card
+  render.py            draws the charts
+  rendered/            README.md with the charts (light and -dark PNGs)
 ```
+
+## Data
+
+All recordings are published as recorded; raw data is never edited.
+Corrections are `# NOTE` lines in each run's `.meta.txt`. Per-run unit
+state is in `<servo>/data/runs.csv`:
+
+- `healthy`: use freely.
+- `hot`: healthy hardware, but run at 63–75 °C reported, with overheat throttling.
+- `faulty`: the unit was failing. `use_until_s` gives the last trusted time.
+
+For the SC15, the output gear stripped during the hot runs at the end of
+2026-10-30. The damage first shows 570 s into
+`chaos_20261030_143007_hot-batch-1.52kg-at-50mm-8.7V`.
 
 ## Workflow
 
@@ -38,25 +55,26 @@ shared/                common to every servo
    `python3 shared/tools/chaos_log.py --servo sc15 --seconds N --tag <load>-<what>`.
    This resets the board and writes `<servo>/data/chaos_<stamp>_<tag>.csv.gz`
    plus `.meta.txt`.
-3. Add notes to the run's `.meta.txt` (`# NOTE …`) for anything the data
-   alone doesn't say, such as setup changes or known bad blocks. Add a row
-   to the servo README's run log.
-4. Split into blocks if needed (`shared/tools/split_batch.py <run>.csv.gz`),
-   analyse, and rerun `<servo>/render.py`.
+3. Add `# NOTE` lines to the `.meta.txt`, and add a row to the run log and
+   to `runs.csv`.
+4. Analyse, fit (`shared/tools/fit_model.py`) and rerun `<servo>/render.py`.
 
-Requires `pyserial`, `numpy`, `pandas`, `scipy` and `matplotlib`, plus
-`arduino-cli` with the esp32 core ≥ 3.3.11.
+`pip install -r requirements.txt`, plus `arduino-cli` with the esp32
+core ≥ 3.3.11.
 
 ## Conventions
 
 - Telemetry is 250 Hz, one frame per 4 ms servo tick. Columns: `t_s,
   segment, mode, flags, command, command_time_ms, position, speed, load,
   voltage_v, temperature_c, error`, plus `block, kp` in v2 frames.
-  `mode`: 0 motor, 1 position, 2 cooldown, 3 stall-guard trip, 4 released
-  (torque off). `flags`: 0x01 segment start, 0x02 mode entry, 0x04 read
-  failed.
+  - `mode`: 0 motor, 1 position, 2 cooldown, 3 stall-guard trip, 4 released (torque off).
+  - `flags`: 0x01 segment start, 0x02 mode entry, 0x04 read failed, 0x08 dead drive.
 - `load` is the PWM the servo actually applied, −1000..1000. It is the
   true actuator input; `command` is only what was asked.
 - Angles are measured from hanging straight down (`servo.json`
   `down_count`). For the SC15, positive PWM drives the count down.
-- Raw data is never edited. Corrections go into the `.meta.txt` as notes.
+
+## License
+
+Code, data, CAD and documentation are dual-licensed under
+[MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE), at your option.

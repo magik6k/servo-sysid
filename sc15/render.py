@@ -5,6 +5,9 @@ Each chart is drawn twice, for light and dark page themes. rendered/README.md
 references them by name; rerun this after adding data:
 
     python3 sc15/render.py
+
+The model charts need the fitting dependencies (numba, cma) and the fits in
+sc15/model/.
 """
 
 import pathlib
@@ -333,6 +336,252 @@ def hunting(th):
     return fig
 
 
+BATCH = '093448_heavy-batch'  # the main part of the full heavy batch
+
+
+def position_law(th):
+    df = run(BATCH)
+    g = df[(df['mode'] == servolab.POSITION) & (df.speed == 0) & df.valid].copy()
+    g['err'] = (g.command - g.position).abs()
+    g['out'] = g.load.abs() / 10
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    err = np.arange(0, 31)
+    for color, kp in zip(th['series'], (8, 15, 30)):
+        m = g[g.kp == kp].groupby('err').out.agg(['median', 'count'])
+        m = m[(m['count'] >= 30) & (m.index <= 30)]
+        law = np.where(err >= (2 if kp == 30 else 3), 3 + kp * (err - 1) / 10, 0)
+        ax.plot(err, law, color=color, lw=0.8)
+        ax.scatter(m.index, m['median'], s=16, color=color, edgecolors=th['surface'], linewidths=1,
+                   label=f'kp {kp}', zorder=3)
+    note(ax, th, 18.5, 2, 'lines: 30 + kp × (error − 1) units\n(punch 30, dead band 1)', va='bottom')
+    ax.set(xlabel='|goal − position| at rest (counts; 4.47 per degree)', ylabel='applied output (%)',
+           xlim=(0, 30.5), ylim=(0, 92),
+           title='Position mode at rest: output = punch + kp × (error − dead band), no integral')
+    ax.legend(loc='upper left')
+    return fig
+
+
+def friction_band(th):
+    df = run(BATCH)
+    g = df[df.segment.between(60, 76)]
+    t = g.t_s - g.t_s.iloc[0]
+    fig, axes = plt.subplots(2, 1, figsize=(7, 4.6), sharex=True)
+    axes[0].plot(t, (g.command - CFG['down_count']) / CPD, color=th['ref'], lw=0.8, label='goal')
+    axes[0].plot(t, g.deg, color=th['series'][0], lw=LW, label='position')
+    axes[0].set_ylabel('angle (deg)')
+    axes[0].legend(loc='upper left', ncol=2)
+    axes[1].plot(t, -g.load / 10, color=th['series'][0], lw=LW)
+    axes[1].set(ylabel='applied output (%)', xlabel='time (s), kp 15, 1.52 kg at 65 mm')
+    axes[0].set_title('At 45° (0.69 N·m) the arm does not move while the drive varies 10–30 %')
+    fig.tight_layout()
+    return fig
+
+
+def heavy_release(th):
+    df = run(BATCH)
+    released = df[(df.block == 6) & (df['mode'] == servolab.RELEASED)]
+    tg = servolab.gravity_torque_max(CFG, '1.52kg')
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    ends = []
+    for i, (_, g) in enumerate(released.groupby('segment')):
+        g = g[g.valid]
+        t = g.t_s - g.t_s.iloc[0]
+        ax.plot(t, g.deg, color=th['series'][0], lw=LW)
+        note(ax, th, 0, g.deg.iloc[0], f'{g.deg.iloc[0]:+.0f}° ', ha='right', va='center')
+        ends.append(g.deg.iloc[-1])
+    hold = tg * np.sin(np.radians(np.mean(np.abs(ends)))) * 1000
+    for end in (min(ends), max(ends)):
+        note(ax, th, 3.0, end, f' {end:+.1f}°', va='center')
+    ax.axhline(0, color=th['ref'], lw=0.6)
+    ax.set(xlabel='time since torque off (s)', ylabel='angle (deg)', xlim=(-0.45, 3.45),
+           title=f'Released, 1.52 kg stops ~9° short of down: friction holds {hold / 1000:.2f} N·m')
+    return fig
+
+
+def thermal_derating(th):
+    tg = servolab.gravity_torque_max(CFG, '1.52kg')
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    for color, duty in zip(th['series'], (350, 500, 650)):
+        xs, ys = [], []
+        for key in ('heavy-first-turns', BATCH):
+            df = run(key)
+            for _, g in df[(df['mode'] == servolab.MOTOR) & (df.command.abs() == duty)].groupby('segment'):
+                tail = g[g.t_s > g.t_s.max() - 0.3]
+                if not (tail.speed.abs().median() == 0 and tail.valid.all()):
+                    continue  # turned or never settled: no stall
+                xs.append(tail.temperature_c.median())
+                ys.append(tg * abs(np.sin(np.radians(tail.deg.median()))) / duty * 1000)
+        ax.scatter(xs, ys, s=30, color=color, edgecolors=th['surface'], linewidths=1,
+                   label=f'{duty // 10} % stalled', zorder=3)
+    note(ax, th, 27.3, 1.6, 'last night:\n50 and 65 % turned', ha='center')
+    ax.set(xlabel='reported temperature at the stall (°C)', ylabel='stall torque per 0.1 % (mN·m)',
+           xlim=(22, 42), ylim=(0, 3), title='Motor-mode stall torque drops ~20 % when warm (1.52 kg, from rest)')
+    ax.legend(loc='lower left')
+    return fig
+
+
+def temperature(th):
+    main = run(BATCH)
+    tail = run('094731_heavy-batch')
+    fig, ax = plt.subplots(figsize=(7, 3.6))
+    for g, t in ((main, main.t_s), (tail, tail.t_s + 761.5)):  # tail: board time minus ~1 s
+        g = g[g.valid]
+        ax.plot(t[g.index] / 60, g.temperature_c.rolling(250, center=True).median(), color=th['series'][0], lw=LW)
+    names = main.attrs['blocks']
+    starts = main.groupby('block').t_s.min().sort_values()
+    labels = {'holds': 'holds', 'backlash': 'backlash', 'chirp_soft': 'trajectories', 'lift_drop': 'lift-drop',
+              'heavy_laps': 'laps', 'chaos': 'chaos'}
+    for b, t0 in starts.items():
+        name = names.get(b, '')
+        if name in labels:
+            ax.axvline(t0 / 60, color=th['grid'], lw=0.8)
+            note(ax, th, t0 / 60, 64, f' {labels[name]}', va='top', rotation=90)
+    ax.axvspan(694.4 / 60, 761.5 / 60, color=th['grid'], alpha=0.6, lw=0)
+    note(ax, th, 728 / 60, 23, 'USB\ndropout', ha='center')
+    ax.set(xlabel='time in the batch (min)', ylabel='reported temperature (°C, 1 s median)', ylim=(18, 66),
+           title='The heavy batch heats the servo from 21 to 51 °C; it cools only once parked')
+    return fig
+
+
+PROBED = '101658_heavy-batch-probed'  # 1.52 kg at 50 mm, 8.7 V
+
+
+def probe_stalls(df, setup):
+    """(time, reported temperature, signed duty, mN·m per unit) per probe push,
+    including the probes inside a burn (the only ±250 segments there)."""
+    tg = servolab.gravity_torque_max(CFG, setup)
+    probes = [b for b, name in df.attrs['blocks'].items() if name in ('probe', 'burn', 'burn_high')]
+    rows = []
+    pushes = df[df.block.isin(probes) & df['mode'].isin([servolab.MOTOR, servolab.FAULT])
+                & (df.command.abs() == 250)]
+    for _, g in pushes.groupby('segment'):
+        g = g[g.valid]
+        tail = g[g.t_s > g.t_s.max() - 0.5]
+        rows.append((g.t_s.iloc[0], tail.temperature_c.median(), g.command.iloc[0],
+                     tg * abs(np.sin(np.radians(tail.deg.median()))) / abs(g.command.iloc[0]) * 1000))
+    return pd.DataFrame(rows, columns=['t', 'temp', 'duty', 'per_unit'])
+
+
+def voltage_scaling(th):
+    keys = [PROBED, 'at-50mm-7.4V', 'at-50mm-6.6V', 'at-50mm-4.8V']
+    probes_v, probes_k, laps_v, laps_rpm = [], [], [], []
+    for key in keys:
+        df = run(key)
+        cold = probe_stalls(df, '1.52kg-50mm').iloc[:2]  # first pair, ~27 °C
+        probes_v.append(np.mean([df[(df.t_s >= t) & (df.t_s < t + 4) & df.valid].voltage_v.median() for t in cold.t]))
+        probes_k.append(cold.per_unit.mean())
+        laps = [b for b, name in df.attrs['blocks'].items() if name == 'heavy_laps'][0]
+        for _, g in df[(df.block == laps) & (df['mode'] == servolab.MOTOR) & (df.command.abs() == 800)].groupby('segment'):
+            ok = g[g.valid]
+            p, t = ok.position.to_numpy(), ok.t_s.to_numpy()
+            down = CFG['down_count']
+            cross = (p[:-1] > down) & (p[1:] <= down) if g.command.iloc[0] > 0 else (p[:-1] < down) & (p[1:] >= down)
+            period = np.diff(t[:-1][cross])
+            if len(period):
+                laps_v.append(0.8 * g.voltage_v.median())
+                laps_rpm.append(60 / np.median(period))
+    probes_v, probes_k = np.array(probes_v), np.array(probes_k)
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(8, 3.8))
+    k = (probes_v @ probes_k) / (probes_v @ probes_v)
+    v = np.array([0, 9])
+    a1.plot(v, k * v, color=th['ref'], lw=0.8)
+    a1.scatter(probes_v, probes_k, s=30, color=th['series'][0], edgecolors=th['surface'], linewidths=1, zorder=3)
+    note(a1, th, 0.4, 2.35, f'proportional:\n{k * 1000:.0f} µN·m per unit per volt', va='top')
+    a1.set(xlabel='supply at the probe (V)', ylabel='stall torque per 0.1 % (mN·m)', xlim=(0, 9), ylim=(0, 2.5))
+    a1.set_title('Cold 25 % probes', fontsize=9, fontweight='normal', color=th['text2'])
+    slope, icpt = np.polyfit(laps_v, laps_rpm, 1)
+    v = np.array([-icpt / slope, max(laps_v) + 0.3])
+    a2.plot(v, slope * v + icpt, color=th['ref'], lw=0.8)
+    a2.scatter(laps_v, laps_rpm, s=30, color=th['series'][0], edgecolors=th['surface'], linewidths=1, zorder=3)
+    note(a2, th, -icpt / slope, 2, f'  zero at {-icpt / slope:.1f} V', va='bottom')
+    a2.set(xlabel='0.8 × supply under load (V)', ylabel='turn rate (RPM)', xlim=(0, 7.5), ylim=(0, 65))
+    a2.set_title('80 % laps (stalled at 4.8 V)', fontsize=9, fontweight='normal', color=th['text2'])
+    fig.suptitle('Supply voltage, 1.52 kg at 50 mm: torque scales with it; loaded speed has an offset',
+                 x=0.02, ha='left', fontsize=10, fontweight='bold', color=th['text'])
+    fig.tight_layout()
+    return fig
+
+
+def probes(th):
+    p = probe_stalls(run(PROBED), '1.52kg-50mm')
+    labels = ['start', 'after backlash', 'after trajectories', 'after laps + bang', 'after chaos']
+    fig, ax = plt.subplots(figsize=(7, 3.8))
+    for color, (label, sign) in zip(th['series'], [('pushing toward + angles', -1), ('pushing toward − angles', 1)]):
+        g = p[np.sign(p.duty) == sign].reset_index(drop=True)
+        ax.plot(g.temp, g.per_unit, color=color, lw=0.8)
+        ax.scatter(g.temp, g.per_unit, s=30, color=color, edgecolors=th['surface'], linewidths=1, label=label, zorder=3)
+        for i, row in g.iterrows():
+            note(ax, th, row.temp, row.per_unit, str(i + 1), va='center',
+                 xytext=(6, 0), textcoords='offset points')
+    note(ax, th, 25.5, 1.42, '  '.join(f'{i + 1} {label}' for i, label in enumerate(labels)), va='bottom')
+    ax.set(xlabel='reported temperature (°C)', ylabel='stall torque per 0.1 % (mN·m)', ylim=(1.35, 2.6),
+           title='25 % probes: torque falls as it heats, and the sensor lags a hard block')
+    ax.legend(loc='upper right')
+    return fig
+
+
+MODEL_DIR = servolab.servo_dir(SERVO) / 'model'
+# Validation MAE (rad) read off Fig. 5 of Duclusaud et al., ICRA 2025, ±0.0005.
+BAM_FIG5 = {'MX-64': [0.0273, 0.0252, 0.0213, 0.0139, 0.0093, 0.0093],
+            'MX-106': [0.0192, 0.0185, 0.0145, 0.0105, 0.0095, 0.0095]}
+
+
+def model_mae(th):
+    import json
+    ours = [json.loads((MODEL_DIR / f'bam-m{i}.json').read_text())['val_mae_rad'] for i in range(1, 7)]
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    x = np.arange(6)
+    series = [('SC15, held-out runs', ours)] + [(f'BAM {k} (paper)', v) for k, v in BAM_FIG5.items()]
+    for j, (color, (label, v)) in enumerate(zip(th['series'], series)):
+        ax.bar(x + (j - 1) * 0.27, np.degrees(v), 0.25, color=color, label=label, edgecolor=th['surface'], linewidth=1)
+    for xi, v in zip(x, ours):
+        note(ax, th, xi - 0.27, np.degrees(v) + 0.03, f'{np.degrees(v):.2f}', ha='center', va='bottom')
+    ax.set_xticks(x, ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'])
+    ax.set(ylabel='position MAE, 6 s windows (°)', ylim=(0, 1.8))
+    ax.grid(axis='x', visible=False)
+    ax.legend(loc='upper right')
+    ax.set_title('Friction models, BAM protocol: the SC15 fit lands between BAM\'s M1 and best')
+    return fig
+
+
+def model_fit(th):
+    import json
+    import fit_model
+    import sc_model
+    fit = json.loads((MODEL_DIR / 'full-m6.json').read_text())
+    p = sc_model.full_vector('m6', fit['params'], thermal=fit['thermal'])
+    ws = [w for w in fit_model.load_windows() if w['run'] in fit_model.VALIDATION_RUNS]
+    want = [('trajectory', 'dual_sine_soft', 15), ('trajectory', 'chirp_soft', 30), ('chaos', 'chaos', 15)]
+    picks = []
+    for kind, block, kp in want:  # the window with the median error of its kind
+        cand = [w for w in ws if w['kind'] == kind and w['block'] == block and w['kp'] == kp and len(w['mode']) == 1500]
+        e = fit_model.window_errors(p, fit_model.pack(cand), True)
+        picks.append(cand[int(np.argsort(e)[len(e) // 2])])
+    pk = fit_model.pack(picks)
+    err = fit_model.window_errors(p, pk, True)
+    fig, axs = plt.subplots(3, 1, figsize=(8, 7.2), sharex=True)
+    for i, (ax, w) in enumerate(zip(axs, picks)):
+        a, n = pk['starts'][i], pk['lengths'][i]
+        sim = np.empty(n)
+        sc_model.rollout(p, pk['mode'][a:a + n], pk['command'][a:a + n], pk['command_time'][a:a + n],
+                         pk['flags'][a:a + n], pk['load'][a:a + n], pk['volt'][a:a + n], pk['tempc'][a:a + n],
+                         pk['kp'][i], pk['mgl'][i], pk['jload'][i], pk['spool'][i], pk['q0'][i], pk['dq0'][i],
+                         pk['u0'][i], True, sim, pk['meas'][a:a + n], pk['meas_vel'][a:a + n], pk['reset'][i])
+        t = np.arange(n) * sc_model.TICK
+        if w['kind'] == 'trajectory':
+            ax.plot(t, (w['command'] - CFG['down_count']) / CPD, color=th['ref'], lw=0.6, label='goal')
+        ax.plot(t, np.degrees(pk['meas'][a:a + n]), color=th['series'][0], label='measured')
+        ax.plot(t, np.degrees(sim), color=th['series'][1], label='simulated')
+        what = f"{w['block']} at kp {w['kp']}" if w['kind'] == 'trajectory' else 'chaos (motor and position segments, re-synced every 1 s)'
+        ax.set_title(f"{what}: MAE {np.degrees(err[i]):.2f}°", fontsize=9, fontweight='normal', color=th['text2'])
+        ax.set_ylabel('angle (°)')
+    axs[0].legend(loc='upper right', ncol=3)
+    axs[-1].set_xlabel('time (s)')
+    fig.suptitle('Full model (M6, firmware controller, thermal) on held-out runs, 1.52 kg at 50 mm',
+                 x=0.02, ha='left', fontsize=10, fontweight='bold', color=th['text'])
+    return fig
+
+
 CHARTS = [
     ('motor_slew', motor_slew),
     ('position_slew', position_slew),
@@ -347,6 +596,15 @@ CHARTS = [
     ('regen_clamp', regen_clamp),
     ('bang', bang),
     ('hunting', hunting),
+    ('position_law', position_law),
+    ('friction_band', friction_band),
+    ('heavy_release', heavy_release),
+    ('thermal_derating', thermal_derating),
+    ('temperature', temperature),
+    ('probes', probes),
+    ('voltage_scaling', voltage_scaling),
+    ('model_mae', model_mae),
+    ('model_fit', model_fit),
 ]
 
 

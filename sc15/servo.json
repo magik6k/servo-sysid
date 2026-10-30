@@ -10,6 +10,7 @@
     "unloaded": {"mass_kg": 0, "radius_m": 0, "arm_kg": 0, "arm_com_m": 0},
     "arm": {"mass_kg": 0, "radius_m": 0, "arm_kg": 0.0135, "arm_com_m": 0.0615},
     "100g": {"mass_kg": 0.1004, "radius_m": 0.125, "arm_kg": 0.0135, "arm_com_m": 0.0615},
-    "1.52kg": {"mass_kg": 1.52, "radius_m": 0.065, "arm_kg": 0.020, "arm_com_m": 0.060}
+    "1.52kg": {"mass_kg": 1.52, "radius_m": 0.065, "arm_kg": 0.020, "arm_com_m": 0.060},
+    "1.52kg-50mm": {"mass_kg": 1.52, "radius_m": 0.050, "arm_kg": 0.020, "arm_com_m": 0.060}
   }
 }

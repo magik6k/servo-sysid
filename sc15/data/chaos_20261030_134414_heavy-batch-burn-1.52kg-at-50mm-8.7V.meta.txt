@@ -1,0 +1,16 @@
+# chaos v2 seed=2180886467 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=probe 17=burn 18=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: probe/kp15 holds/kp15 backlash/kp15 backlash/kp8 probe/kp15 chirp_soft/kp8 dual_sine_soft/kp8 raise_lower/kp8 chirp_soft/kp15 dual_sine_soft/kp15 raise_lower/kp15 chirp_soft/kp30 dual_sine_soft/kp30 raise_lower/kp30 probe/kp15 lift_drop/kp15 heavy_laps/kp15 bang/kp30 probe/kp15 chaos/kp15 probe/kp15 burn/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 00 00 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 02 00 00 FA 00 00
+# reg 30: 01 00 00 00 00 00 00 00 01 3F 00 00 00 FA 56 16
+# reg 40: 00 00 01 02 00 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag heavy-batch-burn-1.52kg-at-50mm-8.7V
+# NOTE Repeat of chaos_20261030_101658 at 8.7 V (HEAVY_BATCH_BURN = HEAVY_BATCH_PROBED + burn). Started from 22 C, not the 27 C of the voltage runs.
+# NOTE Overload (error bit 5) once, at 65 s in holds at +100 deg (goal 960, stalled at 937, output 360 -> clamped to exactly 200 until the next lower goal). The first 8.7 V run held 330 at the same point for 4.4 s without tripping.
+# NOTE Burn from 917 s (45 C). Single frames reading exactly 100 C with error bit 2 appear from 57 C on; in each the servo's output drops to 0 and ramps again from 0. The firmware's 3-in-a-row overheat trip never fired.
+# NOTE USB dropped twice (frames lost after 725.1 s and 1982.7 s; the logger reconnected without a reset).
+# NOTE Stopped by the user's request at 2419 s (14:24:30), 25 min into the burn at a reported 73 C, to switch to burn_high. The board kept running the burn unlogged until it was reflashed (~30 s).

@@ -1,0 +1,72 @@
+{
+ "name": "bam-m3",
+ "model": "m3",
+ "seeds": 3,
+ "seed_costs": [
+  0.02007348617866943,
+  0.023153409804276378,
+  0.020106241051016046
+ ],
+ "thermal": false,
+ "directional": false,
+ "weigh_kinds": false,
+ "closed_loop": true,
+ "kinds": [
+  "trajectory",
+  "drop"
+ ],
+ "validation_runs": [
+  "134414_heavy-batch-burn",
+  "112510_heavy-batch-probed"
+ ],
+ "evaluations": 29856,
+ "seconds": 47,
+ "params": {
+  "k": 0.4937526348916073,
+  "b": 0.019002364057728587,
+  "J_m": 0.00913525031703543,
+  "J_spool": 0.009996663923315002,
+  "offset": -0.0037986539608456382,
+  "kd": 68.42079957729243,
+  "Kc": 0.1050188680881169,
+  "Kv": 0.33766635958199703,
+  "Km": 0.2714981809865215
+ },
+ "train_mae_rad": 0.02007348617866943,
+ "val_mae_rad": 0.015418514674593674,
+ "by_kind": {
+  "train/drop": {
+   "mae_deg": 0.902,
+   "windows": 3
+  },
+  "train/trajectory": {
+   "mae_deg": 1.154,
+   "windows": 215
+  },
+  "val/drop": {
+   "mae_deg": 1.583,
+   "windows": 8
+  },
+  "val/trajectory": {
+   "mae_deg": 0.818,
+   "windows": 86
+  }
+ },
+ "by_setup_kp": {
+  "train/1.52kg/drop/15": 0.808,
+  "train/1.52kg/trajectory/8": 1.058,
+  "train/1.52kg/trajectory/15": 0.837,
+  "train/1.52kg/trajectory/30": 1.412,
+  "train/1.52kg-50mm/drop/15": 0.95,
+  "train/1.52kg-50mm/trajectory/8": 0.781,
+  "train/1.52kg-50mm/trajectory/15": 0.778,
+  "train/1.52kg-50mm/trajectory/30": 1.199,
+  "train/100g/trajectory/8": 1.141,
+  "train/100g/trajectory/15": 1.899,
+  "train/100g/trajectory/30": 2.693,
+  "val/1.52kg-50mm/drop/15": 1.583,
+  "val/1.52kg-50mm/trajectory/8": 0.729,
+  "val/1.52kg-50mm/trajectory/15": 0.538,
+  "val/1.52kg-50mm/trajectory/30": 1.194
+ }
+}

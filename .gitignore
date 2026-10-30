@@ -5,3 +5,6 @@ __pycache__/
 # Uncompressed copies; raw runs are kept as .csv.gz
 */data/*.csv
 shared/rig/vendor/**/*.zip
+.venv/
+# Waveshare's SC15 CAD: not ours to relicense, see shared/rig/vendor/README.md
+shared/rig/vendor/sc15_cad/

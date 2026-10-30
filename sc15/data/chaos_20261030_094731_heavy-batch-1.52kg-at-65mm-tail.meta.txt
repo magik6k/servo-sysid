@@ -1,0 +1,14 @@
+# chaos v2 seed=2924405275 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: holds/kp15 backlash/kp15 backlash/kp8 chirp_soft/kp8 dual_sine_soft/kp8 raise_lower/kp8 chirp_soft/kp15 dual_sine_soft/kp15 raise_lower/kp15 chirp_soft/kp30 dual_sine_soft/kp30 raise_lower/kp30 lift_drop/kp15 heavy_laps/kp15 bang/kp30 chaos/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 00 C8 02 58 00 00
+# reg 30: 01 00 00 00 00 00 00 00 00 D1 00 00 00 96 57 14
+# reg 40: 00 00 00 00 C8 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag heavy-batch-1.52kg-at-65mm-tail
+# NOTE Continuation of chaos_20261030_093448_heavy-batch-1.52kg-at-65mm, same boot, recorded raw without resetting the board after the main logger died. The preamble above is copied from the main run.
+# NOTE t_s starts at this capture's first frame, board time 762.546030 s. The main run's t_s 0 is ~1 s after boot, so board time is roughly main t_s + 1 s; join the two on segment numbers, which are continuous (main ends at 458, this starts at 596).
+# NOTE Contents: chaos segments 596-785 (87 s, the end of the 300 s chaos block), then the park move to 513 and holding (segment 786, block 16=done) for 93 s. 0 bad checksums, 73 failed servo reads.

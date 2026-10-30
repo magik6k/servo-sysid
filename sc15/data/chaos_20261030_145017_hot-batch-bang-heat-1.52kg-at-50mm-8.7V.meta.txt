@@ -1,0 +1,17 @@
+# chaos v2 seed=1625871945 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=probe 17=burn 18=burn_high 19=heat 20=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: heat/kp30 probe/kp15 heat/kp30 holds/kp15 heat/kp30 backlash/kp15 heat/kp30 backlash/kp8 heat/kp30 probe/kp15 heat/kp30 chirp_soft/kp8 heat/kp30 dual_sine_soft/kp8 heat/kp30 raise_lower/kp8 heat/kp30 chirp_soft/kp15 heat/kp30 dual_sine_soft/kp15 heat/kp30 raise_lower/kp15 heat/kp30 chirp_soft/kp30 heat/kp30 dual_sine_soft/kp30 heat/kp30 raise_lower/kp30 heat/kp30 probe/kp15 heat/kp30 lift_drop/kp15 heat/kp30 heavy_laps/kp15 heat/kp30 bang/kp30 heat/kp30 probe/kp15 heat/kp30 chaos/kp15 heat/kp30 probe/kp15
+# plan start: block 0
+# thermal: torque off at 69 C until 66 C; heat blocks run below 63 C, up to 66 C
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 1E 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 03 D7 00 01 00 00
+# reg 30: 01 00 00 00 00 00 00 00 03 17 00 00 07 E8 47 36
+# reg 40: 00 00 00 03 D7 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag hot-batch-bang-heat-1.52kg-at-50mm-8.7V
+# NOTE HOT_BATCH with the bang heater (narrow bang 75-95 deg at kp 30, sides alternating) and the lower ceiling (heat below 63 up to 66 C; cutoff 69/66 C), after the user power-cycled the servo; started at 54 C.
+# NOTE 0-14.2 s: stuck at count 791 (+62 deg) under full output (-1000, lifting) with full current (supply 7.1-7.2 V); 54 -> 62 C in 14 s. The user nudged it upwards and it ran. The bang heater then worked as designed: 48-100 deg, output saturated, supply 7.3-8.0 V, 62 -> 66 C in ~45 s.
+# NOTE 181-203 s in holds: stuck at count 328 (-41 deg) under full output lifting (+1000) toward -90/-100 deg, full current; it stayed there with torque off during the 186-200 s cutoff cooldown, so gravity (0.5 N·m) could not back-drive it either. At 203 s a goal back down moved it at 13-33 % output, stop-go every ~60 ms. Gearbox binding in the lifting direction at particular angles: a damaged gear or debris after the hot runs.
+# NOTE Stopped at 218 s (14:54), board then held in reset (torque off). Data after 0 s is from a damaged unit; use it for nothing but the failure.

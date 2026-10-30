@@ -1,0 +1,16 @@
+# chaos v2 seed=3001896729 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=climb 12=bang 13=chirp_soft 14=dual_sine_soft 15=backlash 16=probe 17=burn 18=burn_high 19=heat 20=done
+# trajectories: chirp 60deg 0.2->1.5Hz; chirp_soft 45deg 0.2->1.0Hz; dual_sine 70deg@0.15Hz+10deg@2.5Hz; dual_sine_soft 60deg@0.15Hz+8deg@2.0Hz; raise_lower 12.5deg/s to +-100 with 1 s pauses
+# plan: heat/kp15 probe/kp15 heat/kp15 holds/kp15 heat/kp15 backlash/kp15 heat/kp15 backlash/kp8 heat/kp15 probe/kp15 heat/kp15 chirp_soft/kp8 heat/kp15 dual_sine_soft/kp8 heat/kp15 raise_lower/kp8 heat/kp15 chirp_soft/kp15 heat/kp15 dual_sine_soft/kp15 heat/kp15 raise_lower/kp15 heat/kp15 chirp_soft/kp30 heat/kp15 dual_sine_soft/kp30 heat/kp15 raise_lower/kp30 heat/kp15 probe/kp15 heat/kp15 lift_drop/kp15 heat/kp15 heavy_laps/kp15 heat/kp15 bang/kp30 heat/kp15 probe/kp15 heat/kp15 chaos/kp15 heat/kp15 probe/kp15
+# thermal: torque off at 76 C until 72 C; heat blocks run below 69 C, up to 72 C
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 00 00 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 01 9C 07 E8 00 00
+# reg 30: 01 00 00 00 00 00 00 00 03 FE 00 00 07 E8 4E 3F
+# reg 40: 00 00 01 01 9C 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag hot-batch-1.52kg-at-50mm-8.7V
+# NOTE HOT_BATCH (heat blocks = burn_high segments, below 69 C up to 72 C; cutoff 76/72 C), started at 64 C. The first heat took 513 s (64 -> 72 C).
+# NOTE Valid up to ~699.7 s only. At 620-626 s the +100 deg hold stalled at full output for ~6 s at 73 C (supply sagged to 7.3 V). At ~700 s (14:41:47, 72 C reported), during the backlash block, the motor stopped drawing current: the load register kept reporting up to +-1000 (heat block flat out) but the supply stayed at 8.8 V and the arm never moved from 514, with no error bit. Everything after ~700 s (backlash kp 8, probe, the kp 8 trajectories, chirp_soft kp 15, heat) is the servo with a dead motor drive, not dynamics.
+# NOTE Stopped at 811 s (14:43:30). hold_position flashed, torque released at 65 C. At 62 C a 10 deg move worked again after ~1 s of -675 output with no motion and no sag. Probably the driver's own thermal shutdown (silent; recovers when cooler), or heat damage to the motor (brushes, winding). Health check pending.
+# NOTE Correction: gear damage already shows from 570 s (full-output stall at +54 deg in holds, then -48 deg at 621-626 s; the same spots as the binding in chaos_20261030_145017). Treat this run as valid to 570 s only. The output gear was later found stripped in one spot.
