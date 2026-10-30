@@ -1,0 +1,11 @@
+# chaos v2 seed=4156321239 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=done
+# plan: chaos/kp15 laps/kp15 holds/kp15 chirp/kp8 dual_sine/kp8 raise_lower/kp8 chirp/kp15 dual_sine/kp15 raise_lower/kp15 chirp/kp30 dual_sine/kp30 raise_lower/kp30 lift_drop/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 00 00 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 00 00 04 C0 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 FD 01 90 04 C0 57 16
+# reg 40: 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag batch-100.4g-at-125mm
+# NOTE: chirp/dual_sine/raise_lower blocks here lost 58-96% of reads (goal written right before each read). Use chaos_20261029_192200_trajectories-100.4g-at-125mm instead.

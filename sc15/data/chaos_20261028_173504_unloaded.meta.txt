@@ -1,0 +1,9 @@
+# chaos v1 seed=3863943923 sample_us=4000 frame_bytes=24 servo_id=1
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 02 3F 00 36 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 3E 00 00 00 00 56 1C
+# reg 40: 00 00 00 02 3F 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag unloaded
+# NOTE 2026-10-29: applySegment wrote the duty before entering motor mode, which clears the PWM register. Motor segments with flag 0x02 (mode entry/bounce) mostly never drove: treat the load column as the true actuator input, not command.

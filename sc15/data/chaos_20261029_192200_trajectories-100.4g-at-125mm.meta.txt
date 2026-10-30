@@ -1,0 +1,10 @@
+# chaos v2 seed=380072103 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=done
+# plan: chirp/kp8 dual_sine/kp8 raise_lower/kp8 chirp/kp15 dual_sine/kp15 raise_lower/kp15 chirp/kp30 dual_sine/kp30 raise_lower/kp30
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 08 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 02 EA 00 04 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 E5 00 00 04 3E 57 1D
+# reg 40: 00 00 00 02 EA 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag trajectories-100.4g-at-125mm

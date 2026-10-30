@@ -1,0 +1,10 @@
+# chaos v2 seed=1634750895 sample_us=4000 frame_bytes=26 servo_id=1 down=513 counts_per_rev=1610
+# blocks: 0=chaos 1=laps 2=holds 3=chirp 4=dual_sine 5=raise_lower 6=lift_drop 7=swings 8=heavy_laps 9=check_laps 10=regen_bursts 11=done
+# plan: regen_bursts/kp15
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 03 FF 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 01 00 02 01 09 C4 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 03 00 00 00 2D 57 1B
+# reg 40: 00 00 00 02 01 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag regen-soak-3x80pct-clamp-1.52kg-at-65mm

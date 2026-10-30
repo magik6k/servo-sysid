@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# Regenerated with shared/tools/split_batch.py
+*/data/derived/
+# Uncompressed copies; raw runs are kept as .csv.gz
+*/data/*.csv
+shared/rig/vendor/**/*.zip

@@ -1,0 +1,9 @@
+# chaos v1 program=laps seed=339376493 sample_us=4000 frame_bytes=24 servo_id=1
+# reg 00: 00 05 01 05 0F 01 00 00 01 00 00 00 00 50 5A 2D
+# reg 10: 03 E8 00 24 25 0F 0F 00 00 1E 01 01 01 00 00 00
+# reg 20: 00 00 00 00 00 14 64 50 00 00 02 A5 00 00 00 00
+# reg 30: 01 00 00 00 00 00 00 00 02 A5 00 00 00 00 58 19
+# reg 40: 00 00 00 02 A5 00 00 00 00 00 00 00 00 00 00 02
+# BEGIN
+# tag arm-only-laps
+# NOTE 2026-10-29: never drove (load is 0 throughout). The laps segments wrote the duty before entering motor mode, which clears it. Superseded by chaos_20261029_181040_arm-only-laps.

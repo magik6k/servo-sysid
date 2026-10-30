@@ -1,0 +1,15 @@
+{
+  "servo": "Waveshare SC15 (Feetech SCS15-compatible), bus ID 1, unit 1",
+  "counts_per_rev": 1610,
+  "down_count": 513,
+  "trust_counts": [20, 1000],
+  "max_step_counts": 30,
+  "sample_s": 0.004,
+  "pwm_full": 1000,
+  "setups": {
+    "unloaded": {"mass_kg": 0, "radius_m": 0, "arm_kg": 0, "arm_com_m": 0},
+    "arm": {"mass_kg": 0, "radius_m": 0, "arm_kg": 0.0135, "arm_com_m": 0.0615},
+    "100g": {"mass_kg": 0.1004, "radius_m": 0.125, "arm_kg": 0.0135, "arm_com_m": 0.0615},
+    "1.52kg": {"mass_kg": 1.52, "radius_m": 0.065, "arm_kg": 0.020, "arm_com_m": 0.060}
+  }
+}

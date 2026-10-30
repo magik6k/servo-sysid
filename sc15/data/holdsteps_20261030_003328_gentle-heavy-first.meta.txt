@@ -1,0 +1,4 @@
+# hold_position steps (shared/firmware/hold_position + shared/tools/hold_steps.py), 20 Hz text telemetry
+# goals 556,466,601,421,511 (+-10, +-20 deg about down), 2 s position-mode moves, 3 s dwell
+# tag gentle-heavy-first
+# setup: 1.52 kg spool at the 65 mm hole (mass reported afterwards), before the supply clamp
